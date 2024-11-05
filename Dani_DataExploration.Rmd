@@ -1,0 +1,113 @@
+---
+title: "Data Exploration"
+output: html_document
+date: "2024-11-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+pinus albicus SPCD 101
+```{r}
+
+library(ggplot2)
+
+source(here::here("R", "query_tables_db_fxns.R"))
+
+con <- connect_to_tables(here::here("data", "db", "foresttime-from-state-parquet.duckdb"))
+
+```
+
+##pull all tree data for CO
+```{r}
+CO <- query_tree_surveys(
+  con = con,
+  conditions = create_conditions(
+    STATECD == 8,
+    ANY_SPCD_FLAG == FALSE
+  ),
+  variables = c("MEASYEAR", "DIA", "HT", "CONDID", "LON", "LAT", "ADFORCD")
+)
+```
+
+##total unique tree composite ID
+```{r}
+total_unique_trees <- unique(ts2$TREE_COMPOSITE_ID)
+```
+
+#Panel Years
+```{r}
+panel_yrs <- unique(ts2$INVYR)
+print(panel_yrs)
+```
+
+##Create new data.frame for each panel year
+
+```{r}
+Panel1 <- CO %>% filter(INVYR == 2002)
+Panel2 <- CO %>% filter(INVYR == 2003)
+Panel3 <- CO %>% filter(INVYR == 2004)
+Panel4 <- CO %>% filter(INVYR == 2005)
+Panel5 <- CO %>% filter(INVYR == 2006)
+Panel6 <- CO %>% filter(INVYR == 2007)
+Panel7 <- CO %>% filter(INVYR == 2008)
+Panel8 <- CO %>% filter(INVYR == 2009)
+Panel9 <- CO %>% filter(INVYR == 2010)
+Panel10 <- CO %>% filter(INVYR == 2011)
+```
+
+##Second Census Panels
+```{r}
+Panel1_2 <- CO %>% filter(INVYR == 2012)
+Panel2_2 <- CO %>% filter(INVYR == 2013)
+Panel3_2 <- CO %>% filter(INVYR == 2014)
+Panel4_2 <- CO %>% filter(INVYR == 2015)
+Panel5_2 <- CO %>% filter(INVYR == 2016)
+Panel6_2 <- CO %>% filter(INVYR == 2017)
+Panel7_2 <- CO %>% filter(INVYR == 2018)
+Panel8_2 <- CO %>% filter(INVYR == 2019)
+```
+
+```{r}
+Panel1_2_unique<- unique(Panel1_2$TREE_COMPOSITE_ID)
+```
+
+##New dataframe for tree totals
+```{r}
+INVYR_C1 <- c(1,2,3,4,5,6,7,8,9,10)
+TreeCount_C1 <- c(13658, 14894, 14828, 14178, 14006, 12643, 12920, 13387, 12946, 12434)
+INVYR_C2 <- c(1,2,3,4,5,6,7,8,9,10)
+TreeCount_C2 <- c(13680, 14314, 14290, 14250, 14654, 14495, 14493, 15106, 0, 0)
+
+Census <- data_frame(INVYR_C1, TreeCount_C1, INVYR_C2, TreeCount_C2)
+```
+
+```{r}
+OnePlot <- ts2 %>% filter(PLOT_COMPOSITE_ID == "8_3_109_86152")
+```
+
+```{r}
+PP <- query_tree_surveys(
+  con = con,
+  conditions = create_conditions(
+    STATECD == 8,
+    COUNTYCD == 109,
+    PLOT_COMPOSITE_ID == "8_3_109_86152",
+    TREE_COMPOSITE_ID == "8_3_109_86152_3_19",
+    SPCD == 96,
+    ANY_SPCD_FLAG == FALSE
+  ),
+  variables = c("MEASYEAR", "DIA", "HT", "CONDID")
+)
+
+```
+
+```{r}
+ggplot(PP, aes(MEASYEAR, DIA, group = TREE_COMPOSITE_ID, color = as.factor(SPCD))) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  scale_color_viridis_d("SPCD", end = .8) +
+  facet_wrap(vars(SPCD), scales = "free")
+```
