@@ -1,12 +1,274 @@
 ---
 title: "Data Exploration"
 output: html_document
-date: "2024-11-05"
+date: "2024-11-07"
 ---
 
-#Where did you find the data? Why did you choose it?
-#Provide descriptions of all variables used in your analyses.
-#What are some interesting features of the data? Provide figures, tables, and other summaries that help explain these features.
-#What challenges do you expect to face in analyzing these data?
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-#White Bark Pine SPCD 101
+```{r}
+#| echo: TRUE
+#| message: FALSE
+#| warning: FALSE
+
+
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tigris)
+library(leaflet)
+library(sf)
+library(basemaps)
+library(ggspatial)  
+library(grid)    
+library(patchwork)
+
+
+theme_set(theme_bw())
+```
+
+```{r}
+#Load all white bark pine data from FIA Datamart and filter for trees in Idaho
+whitebarkpine_all <- read_csv("~/Downloads/whitebark_pine.csv")
+
+
+
+whitebarkpine_all$PLT_CN <- as.character(whitebarkpine_all$PLT_CN)
+whitebarkpine_all$TREE_CN <- as.character(whitebarkpine_all$TREE_CN)
+whitebarkpine_all$COND_CN <- as.character(whitebarkpine_all$COND_CN)
+whitebarkpine_all$PREV_TRE_CN <- as.character(whitebarkpine_all$PREV_TRE_CN)
+
+length(unique(whitebarkpine_all$TREE_COMPOSITE_ID))
+
+knitr::kable(head(whitebarkpine_all))
+```
+
+```{r}
+whitebarkpine_idaho <- whitebarkpine_all %>% filter(STATECD == 16)
+
+whitebarkpine_idaho$PLT_CN <- as.character(whitebarkpine_idaho$PLT_CN)
+whitebarkpine_idaho$TREE_CN <- as.character(whitebarkpine_idaho$TREE_CN)
+whitebarkpine_idaho$COND_CN <- as.character(whitebarkpine_idaho$COND_CN)
+whitebarkpine_idaho$PREV_TRE_CN <- as.character(whitebarkpine_idaho$PREV_TRE_CN)
+
+length(unique(whitebarkpine_all$TREE_COMPOSITE_ID))
+
+knitr::kable(head(whitebarkpine_all))
+```
+```{r}
+Panel1 <- whitebarkpine_idaho %>% filter(INVYR == 2004)
+Panel2 <- whitebarkpine_idaho %>% filter(INVYR == 2005)
+Panel3 <- whitebarkpine_idaho %>% filter(INVYR == 2006)
+Panel4 <- whitebarkpine_idaho %>% filter(INVYR == 2007)
+Panel5 <- whitebarkpine_idaho %>% filter(INVYR == 2008)
+Panel6 <- whitebarkpine_idaho %>% filter(INVYR == 2009)
+Panel7 <- whitebarkpine_idaho %>% filter(INVYR == 2010)
+Panel8 <- whitebarkpine_idaho %>% filter(INVYR == 2011)
+Panel9 <- whitebarkpine_idaho %>% filter(INVYR == 2012)
+Panel10 <- whitebarkpine_idaho %>% filter(INVYR == 2013)
+```
+
+```{r}
+Census1 <- bind_rows( 
+    Panel1 %>% mutate(Panel = "Panel 1"), 
+    Panel2 %>% mutate(Panel = "Panel 2"), 
+    Panel3 %>% mutate(Panel = "Panel 3"), 
+    Panel4 %>% mutate(Panel = "Panel 4"), 
+    Panel5 %>% mutate(Panel = "Panel 5"), 
+    Panel6 %>% mutate(Panel = "Panel 6"), 
+    Panel7 %>% mutate(Panel = "Panel 7"), 
+    Panel8 %>% mutate(Panel = "Panel 8"), 
+    Panel9 %>% mutate(Panel = "Panel 9"), 
+    Panel10 %>% mutate(Panel = "Panel 10"))
+
+Census1$Panel <- factor(Census1$Panel, levels = c("Panel 1", "Panel 2", "Panel 3", "Panel 4", "Panel 5", "Panel 6", "Panel 7", "Panel 8", "Panel 9", "Panel 10"))
+
+colors <- c("Panel 1" = "red", "Panel 2" = "lightgreen", "Panel 3" = "brown", "Panel 4" = "yellow", "Panel 5" = "green", "Panel 6" = "purple", "Panel 7" = "blue", "Panel 8" = "forestgreen", "Panel 9" = "orange", "Panel 10" = "darkblue")
+```
+
+```{r}
+#Wrangle ID state boundary
+ID_state <- tigris::states() |>
+  filter(STATEFP %in% c("16"))
+```
+
+```{r}
+# Plot with a legend 
+ggplot(ID_state) + 
+  geom_sf() + 
+  geom_jitter(data = Census1, aes(LON, LAT, color = Panel)) + 
+  ggtitle("Idaho Tree Census") + 
+  theme_bw() + 
+  scale_color_manual(values = colors, name = "Panels") +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.text.y = element_text(size = 6))
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+#Create a new data frame where each row represents a unique combination of STATECD and TREE_COMPOSITE_ID. Basically, how many times has a tree been remeasured. 
+whitebark_pine_measures <- whitebarkpine_idaho |> 
+  group_by(STATECD, TREE_COMPOSITE_ID) |>
+  summarize(n = length(unique(INVYR))) 
+
+
+knitr::kable(whitebark_pine_measures |>
+               group_by(STATECD, n) |>
+               tally() |>
+               rename(n_measures = n,
+                      n_trees = nn))
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+#Filter for trees that have more than one measurement associated with them
+whitebark_pine_repeats <- filter(whitebark_pine_measures, n > 1) |>
+  left_join(whitebarkpine_all)
+
+
+whitebark_pine_repeats <- whitebark_pine_repeats %>% 
+  relocate(STATECD, TPA_UNADJ, TREE_COMPOSITE_ID, INVYR, CYCLE, MEASYEAR, STATUSCD, DIA)
+
+length(unique(whitebark_pine_repeats$TREE_COMPOSITE_ID)) #3257 white bark pine trees remeasured from annual inventory
+```
+
+
+```{r}
+#Plot all white bark pine in Idaho. There is likely overlap of tree coordinates if multiple white bark pine exsit on one plot. 
+ggplot(ID_state) +
+  geom_sf() +
+  geom_jitter(data = whitebark_pine_repeats, aes(LON, LAT)) +
+  ggtitle("White Bark Pine Idaho") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 6),
+        axis.text.y = element_text(size = 6))
+```
+
+```{r}
+#| echo: FALSE
+#| message: FALSE
+#| warning: FALSE
+
+length(whitebark_pine_repeats$TREE_COMPOSITE_ID)
+
+#filter dead trees into new data frame
+dead_trees <- whitebark_pine_repeats %>%
+  group_by(TREE_COMPOSITE_ID) %>%
+  filter(any(STATUSCD == 2) & any(STATUSCD == 1)) %>%
+  ungroup()
+
+#get the DIA values when trees were alive so we can plot death as a function of the state variable (size)
+alive_dia <- dead_trees %>%
+  filter(STATUSCD == 1) %>%
+  select(TREE_COMPOSITE_ID, DIA, AGENTCD, INVYR) 
+
+whitebark_pine_repeats$Status <- "Alive" 
+dead_trees$Status <- "Dead"
+
+all_trees <- bind_rows(whitebark_pine_repeats, dead_trees)
+```
+
+```{r}
+#Plot alive vs dead white bark pine
+ggplot(ID_state) + 
+  geom_sf() + 
+  geom_jitter(data = all_trees, aes(LON, LAT, color = Status)) + 
+  ggtitle("White Bark Pine Mortality") + 
+  scale_color_manual(name = "Tree Status", values = c("Alive" = "black", "Dead" = "red"), labels = c("Alive", "Dead")) + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(size = 6), axis.text.y = element_text(size = 6))
+```
+
+```{r}
+fully_survived_trees <- whitebark_pine_repeats |>
+  group_by(TREE_COMPOSITE_ID) |>
+  filter(all(STATUSCD == 1)) |>
+  ungroup()
+
+length(unique(alive_dia$TREE_COMPOSITE_ID)) # 1,904 trees died
+length(unique(fully_survived_trees$TREE_COMPOSITE_ID)) # 2767 trees survived
+```
+
+```{r}
+mortality_labels <- c(
+  "10" = "Insect",
+  "20" = "Disease",
+  "30" = "Fire",
+  "40" = "Animal",
+  "50" = "Weather",
+  "60" = "Vegetation",
+  "70" = "Unknown",
+  "NA" = "NA"
+)
+
+agent_colors <- c("Insect" = "purple", "Disease" = "orange", "Fire" = "red", "Animal" = "pink", "Weather" = "blue", "Vegetation" = "green", "Unknown" = "#696969", "NA" = "brown")
+
+# Get the agent codes for dead trees
+agent_codes <- dead_trees %>%
+  filter(STATUSCD == 2) %>%
+  select(TREE_COMPOSITE_ID, AGENTCD, LAT, LON, INVYR) %>%
+  distinct()
+
+agent_names <- c("10" = "Insect", "20" = "Disease", "30" = "Fire", "40" = "Animal", "50" = "Weather", "60" = "Vegetation", "70" = "Unknown")
+
+agent_codes2 <- agent_codes %>% mutate(AgentName = recode(AGENTCD, `10` = "Insect", `20` = "Disease", `30` = "Fire", `40` = "Animal", `50` = "Weather", `60` = "Vegetation", `70` = "Unknown"))
+
+#Plot mortality by agent code
+ggplot(ID_state) + 
+  geom_sf() + 
+  geom_jitter(data = agent_codes2, aes(LON, LAT, color = AgentName), 
+              show.legend = TRUE) + ggtitle("White Bark Pine Mortality Agent") +
+  scale_color_manual(name = "Agent Type", values = agent_colors) + 
+  theme_bw() + 
+  theme(axis.text.x = element_text(size = 6), 
+        axis.text.y = element_text(size = 6))
+```
+
+```{r}
+# Join agent codes back to alive_dia
+alive_dia <- alive_dia %>%
+  left_join(agent_codes, by = "TREE_COMPOSITE_ID", suffix = c("", ".dead"))
+
+
+# Categorize mortality agents
+alive_dia <- alive_dia %>%
+  mutate(MortalityCategory = case_when(
+    AGENTCD.dead == 10 ~ "Insect",
+    AGENTCD.dead == 20 ~ "Disease",
+    AGENTCD.dead %in% c(30) ~ "Fire",
+    !is.na(AGENTCD.dead) ~ "NA",
+    TRUE ~ "NA"
+  ))
+# we have 2027 trees that died
+
+alive_dia_unique <- alive_dia %>%
+  distinct(TREE_COMPOSITE_ID, .keep_all = TRUE)
+
+ggplot(alive_dia_unique <- alive_dia %>%
+  distinct(TREE_COMPOSITE_ID, .keep_all = TRUE), aes(x = DIA, fill = MortalityCategory)) +
+  geom_histogram(binwidth = 1, color = "white", alpha = 0.75, position = "stack") +
+  labs(title = "Whitebark Pine Mortality By Size and Mortality Agent (2004-2019)",
+       x = "Diameter (in.)",
+       y = "",
+       fill = "Mortality Agent") +
+  scale_fill_manual(values = c("Insect" = "black", "Disease" = "darkorange", "Fire" = "darkred", "NA" = "darkblue")) +
+  theme_bw() +
+   theme(
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10), 
+    legend.title = element_text(size = 12),      # Increase legend title size
+    legend.text = element_text(size = 10),       # Increase legend text size
+    legend.key.size = unit(1.5, "lines"),
+    plot.title = element_text(size = 12)
+  ) +
+  xlim(0, 20) +
+  theme(axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10))
+```
