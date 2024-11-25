@@ -29,3 +29,11 @@ data <- data %>% filter(SPCD %in% c(100, 101, 102, 135, 103, 104, 105, 140, 115,
 # write final version of data frame with only pines -------------------------------------
 
 write_csv(data, "data/pinesonly_data.csv")
+
+#filter for most recent complete inventory cycle
+
+filtered_data <- data %>% filter(CYCLE == 2)
+
+unique_plot_ids <- filtered_data %>% summarise(n_unique = n_distinct(PLOT_COMPOSITE_ID))
+print(unique_plot_ids)
+
