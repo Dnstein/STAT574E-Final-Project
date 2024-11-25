@@ -9,7 +9,7 @@ Timekeeper + scheduler: Reed
 Deliverables manager: Ceci, Reed
 
 
-\scripts has all scripts and markdwon documents developed for analysis
+\scripts has all scripts and markdown documents developed for analysis
 
 \data has csvs of the data used in the analaysis
 
