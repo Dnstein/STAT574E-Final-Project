@@ -52,3 +52,19 @@ data <- filtered_data %>%
 #write version of data with added columns and filtered for inventory cycle year 2
 
 write_csv(data, "data/pines_filtereddata.csv")
+
+# create dataframe that's just on the plot_level
+pines_dat <- read_csv("data/pines_filtereddata.csv")
+
+
+# Summarize tree-level variables by PLOT
+grouped_dat <- pines_dat %>%
+  dplyr::select(-DIA, -PREV_STATUS_CD, -AGENTCD, -matches("^TREE_|DIA|DAMAGE")) %>%
+  group_by(PLOT) %>%
+  summarize(across(everything(), first)) %>% 
+  dplyr::select(-2, -4, -5) %>% 
+  ungroup()
+
+# write csv for plot level analaysis - no individual trees
+  
+write_csv(grouped_dat, "data/pines_plotsdat.csv")
