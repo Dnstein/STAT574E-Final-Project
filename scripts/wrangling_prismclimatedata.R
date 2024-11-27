@@ -84,3 +84,12 @@ ggplot() +
 #okay now bring in pine data to merge wiht climate data
 pines_dat <- read_csv("data/pines_filtereddata.csv")
 
+pines_spat <- vect(pines_dat, geom = c("LON", "LAT"), crs = crs(crop_ppt_norms))
+
+#add climate data to the dataframe
+pines_dat$precip <- extract(crop_ppt_norms, pines_spat, nearest = TRUE)[, 2]
+pines_dat$temp <- extract(crop_temp_norms, pines_spat, nearest = TRUE)[, 2]
+
+#update dataframe and rewrite final version to 
+write_csv(pines_dat, "data/pines_filtereddata.csv")
+
