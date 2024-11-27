@@ -15,71 +15,77 @@ library(sf)
 library(sp)
 library(dplyr)
 
-### Getting PRISM climate data to create rasters of monthly climate variables in WBP study area ###
+### Getting PRISM climate data to create rasters of monthly climate variables in our study area ###
+prism_set_dl_dir("normals/")
+prism_path <-  "normals/"
 
-#set directory for climate files
-prism_set_dl_dir("PRISM/data/")
-prism_set_dl_dir("PRISM/normals/")
+# checking file path
+list.files(prism_path, pattern = "bil$")
 
-#retrieve files from PRISM website from 1895 to 2022, this step takes a long time but only do it once
-get_prism_normals(type = "ppt", resolution = "4km", mon=1:12, annual = T, keepZip = TRUE)
-get_prism_normals(type = "tmean", resolution = "4km", mon=1:12, annual = T, keepZip = TRUE)
+# making own annual temps and ppt
+mean_temp <- prism_archive_subset(
+  "tmean", "annual normals", resolution = "4km"
+)
 
+mean_ppt <- prism_archive_subset(
+  "ppt", "annual normals", resolution = "4km"
+)
 
-#get precip files 
-get_prism_monthlys(type = 'ppt', 
-                   years = 1895:2023,  
-                   mon=1:12,
-                   keepZip = TRUE)
+mean_temp <- pd_to_file(mean_temp)
+mean_ppt <- pd_to_file(mean_ppt)
 
-#get temp max files
-get_prism_monthlys(type = 'tmax', 
-                   years = 1895:2023,  
-                   mon=1:12, 
-                   keepZip = TRUE)
+## now make the files into rasters
+mean_temp_rast <- rast(mean_temp)
+mean_ppt_rast <- rast(mean_ppt)
 
-#get temp min files 
-get_prism_monthlys(type = 'tmin', 
-                   years = 1895:2023,  
-                   mon=1:12, 
-                   keepZip = TRUE)
+# crop climate to extent of pine occurrences in FIA plots in Idaho ### 
+idaho_map <- ggplot2::map_data('state', region = c("Idaho"))
+idaho_spat <- vect(idaho_map, geom = c("long", "lat"), crs = "+proj=longlat +datum=NAD83")
+idaho_spat <- project(idaho_spat, crs(mean_temp_rast))
 
-#get tmean  files 
-get_prism_monthlys(type = 'tmean', 
-                   years = 1895:2023,  
-                   mon=1:12, 
-                   keepZip = TRUE)
+# cropping climate normals to idaho
+crop_ppt_norms <- crop(mean_ppt_rast, idaho_spat)
+crop_temp_norms <- crop(mean_temp_rast, idaho_spat)
 
-#get vpdmax files
-get_prism_monthlys(type = 'vpdmax', 
-                   years = 1895:2023,  
-                   mon=1:12, 
-                   keepZip = TRUE)
+# write rasters as tifs
+writeRaster(crop_ppt_norms, "outputs/crop_ppt_norms_idaho.tif", overwrite = TRUE)
+writeRaster(crop_temp_norms, "outputs/crop_temp_norms_idaho.tif", overwrite = TRUE)
 
+# convert to df for plotting in ggplot
+ppt_df <- as.data.frame(crop_ppt_norms, xy = TRUE, na.rm = TRUE)
+colnames(ppt_df) <- c("x", "y", "precip")
+temp_df <- as.data.frame(crop_temp_norms, xy = TRUE, na.rm = TRUE)
+colnames(temp_df) <- c("x", "y", "tmean")
 
-#looking at all the files in the prism archive
-prism_archive_ls()
+#making idaho into df
+idaho_boundary_df <- as.data.frame(geom(idaho_spat))
 
-#Stack monthly data according to data type - part of prism package, this takes a little while
-pptStack <- pd_stack(prism_archive_subset('ppt', "monthly")) 
-tmaxStack <- pd_stack(prism_archive_subset('tmax', "monthly"))
-tminStack <- pd_stack(prism_archive_subset('tmin', "monthly"))
-vpdStack <- pd_stack(prism_archive_subset('vpdmax', "monthly"))
-# tmeanStack <- pd_stack(prism_archive_subset('tmean', "monthly"))
+#plot precip
+ggplot() +
+  geom_tile(data = ppt_df, aes(x = x, y = y, fill = precip)) +  
+  scale_fill_viridis_c(name = "Precipitation (mm)") +  
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "red", size = 1) + 
+  labs(title = "mean annual precipitation",
+       x = "Longitude", y = "Latitude") +
+  coord_fixed() +
+  theme_bw()
 
+#plot temps
+ggplot() +
+  geom_tile(data = temp_df, aes(x = x, y = y, fill = tmean)) +  
+  scale_fill_gradient(name = "Temperature (°C)",
+                      low = "yellow", high = "red") +
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1) +  # Add Idaho boundary
+  labs(title = "mean annual temperature",
+       x = "Longitude", y = "Latitude") +
+  coord_fixed() +
+  theme_bw()
 
-# crop climate to extent of WBP occurrence in FIA plots: Wyoming, Montana, Idaho ### 
-
-clim_map <- ggplot2::map_data('state', region = c("Wyoming", "Montana", "Idaho"))
-wbp_spat <- vect(clim_map, geom = c("long", "lat"), crs = "+proj=longlat +datum=NAD83")
-
-# do this in raster package vs terra package, one works and the other does not weird 
-
-wbp_dat <- read_csv("tree_ring_data_wrangling/rw_dat_2018.csv")
+#okay now bring in data to merge climate with plotdata
+ <- read_csv("tree_ring_data_wrangling/rw_dat_2018.csv")
 wbp_dat$PLOT_CN <- as.character(wbp_dat$PLOT_CN)
 wbp_dat$TRE_CN <- as.character(wbp_dat$TRE_CN)
 wbp_dat$CORE_CN <- as.character(wbp_dat$CORE_CN)
-
 
 
 iw_spat <- SpatialPointsDataFrame(coords = cbind(clim_map$long, clim_map$lat), 
