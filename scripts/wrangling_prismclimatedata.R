@@ -53,8 +53,8 @@ colnames(temp_df) <- c("x", "y", "tmean")
 # making idaho into df
 idaho_boundary_df <- as.data.frame(geom(idaho_spat))
 
-# plot precip
-ggplot() +
+#plot precip
+precip <- ggplot() +
   geom_tile(data = ppt_df, aes(x = x, y = y, fill = precip)) +  
   scale_fill_viridis_c(name = "Precipitation (mm)") +  
   geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "red", size = 1) + 
@@ -63,8 +63,10 @@ ggplot() +
   coord_fixed() +
   theme_bw()
 
-# plot temps
-ggplot() +
+ggsave(filename = "outputs/precip_plot.png", plot = precip, width = 10, height = 8, dpi = 300)
+
+#plot temps
+temp <- ggplot() +
   geom_tile(data = temp_df, aes(x = x, y = y, fill = tmean)) +  
   scale_fill_gradient(name = "Temperature (°C)",
                       low = "yellow", high = "red") +
@@ -74,7 +76,9 @@ ggplot() +
   coord_fixed() +
   theme_bw()
 
-# okay now bring in pine data to merge wiht climate data
+ggsave(filename = "outputs/temp_plot.png", plot = temp, width = 10, height = 8, dpi = 300)
+
+#okay now bring in pine data to merge wiht climate data
 pines_dat <- read_csv("data/pines_filtereddata.csv")
 
 pines_spat <- vect(pines_dat, geom = c("LON", "LAT"), crs = crs(crop_ppt_norms))
