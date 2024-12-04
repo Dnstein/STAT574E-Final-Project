@@ -68,3 +68,14 @@ grouped_dat <- pines_dat %>%
 # write csv for plot level analaysis - no individual trees
   
 write_csv(grouped_dat, "data/pines_plotsdat.csv")
+
+# okay filter dataframe for CON_PROP_UNADJ >0.9
+
+pines_dat <- read_csv("data/pines_plotsdat.csv")
+
+pines_dat <- pines_dat %>% 
+  filter(CONDPROP_UNADJ >= 0.9)
+
+#okay now write this to csv 
+write_csv(pines_dat, "data/pines_plotsdat.csv")
+
