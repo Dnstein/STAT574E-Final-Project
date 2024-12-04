@@ -79,3 +79,17 @@ pines_dat <- pines_dat %>%
 #okay now write this to csv 
 write_csv(pines_dat, "data/pines_plotsdat.csv")
 
+
+# okay now i will center and scale contunuous vars so they are comparable in terms of effect size --------
+
+pines_dat <- read_csv("data/pines_plotsdat.csv")
+pines_dat <- pines_dat %>%
+  mutate(
+    precip_scaled = as.vector(scale(precip)),
+    temp_scaled = as.vector(scale(temp)),
+    BALIVE_scaled = as.vector(scale(BALIVE))
+  )
+
+
+write_csv(pines_dat, "data/pines_plotsdat.csv")
+
