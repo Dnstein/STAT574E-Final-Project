@@ -101,15 +101,18 @@ Model fitting:
 #Playing around with fitting models to the dataset just for climate variables for now
 #MAT and MAP formula with interactions
 logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
+logit_climate_formula_noi <- logit_DEADPROP_adj ~ precip + temp
 
 #Transformed response, see generalized_response slides page 32
 fit_climate_transform_exp <- splm(logit_climate_formula, data = pines_sf, spcov_type = "exponential",
 estmethod = "sv-wls")
-summary(fit_transform_exp)
+summary(fit_climate_transform_exp)
+confint(fit_climate_transform_exp)
+#Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
 climate_formula <- DEADPROP_adj ~ precip * temp
-fit_beta <- spglm(climate_formula, data = pines, family = beta, spcov_type = "none")
+fit_climate_beta <- spglm(climate_formula, data = pines, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
 fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
@@ -117,7 +120,7 @@ fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
 fit_climate_beta_exp <- spglm(climate_formula, data = pines_sf, family = beta,
 spcov_type = "exponential")
 
-
+#Ceci, can you pull in the climate data for the state here so we can make some beautiful prediction plots for the presentation?
 
 #Intercept-only model
 intercept_formula_transform <- logit_DEADPROP ~ 1
@@ -128,15 +131,22 @@ competition_formula_transform <- logit_DEADPROP_adj ~ BALIVE
 #Fire, insect, disease with and without interactions
 
 #Combined model
-#Mortality ~ population_density + fire_exposure + insect_exposure + disease_exposure + MAT + MAP + spatial random effect
+combined_formula_transform <- logit_DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
+combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
 ```
 
 Model diagnostics:
 
 ```{r}
-#Residual plots
+#Put residual plots here
 
-#AIC
 
-#loocv
+#Climate only diagnostics
+AIC(fit_climate_beta, fit_climate_beta_exp, fit_climate_beta_mat)
+
+t(sapply(list(
+  "beta" = fit_climate_beta,
+  "beta exp" = fit_climate_beta_exp,
+  "beta mat" = fit_climate_beta_mat
+), function(x) loocv(x)[, 1:3]))
 ```
