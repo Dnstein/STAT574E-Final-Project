@@ -1,5 +1,5 @@
 ---
-title: "Idado Pines Mortality Analysis"
+title: "Idaho Pines Mortality Analysis"
 output: html_document
 date: "2024-11-15"
 ---
@@ -16,13 +16,25 @@ library(readr)
 library(ggmap)
 library(viridis)
 library(spmodel)
+library(sf)
+library(tidyr)
 ```
 
 Get data/maps:
 
 ```{r, message = FALSE}
 #Read in FIA data
-pines <- read_csv("STAT574E-Final-Project/data/pines_plotsdat.csv")
+pines <- read_csv("data/pines_plotsdat.csv")
+
+#Remove any datapoints that we can't use due to NA values for predictor variables
+pines <- pines %>% drop_na(BALIVE)
+
+#Create binary presence/absence columns for agent classes of primary disturbance codes
+pines$INSECT <- ifelse(pines$DSTRBCD1 >= 10 & pines$DSTRBCD1 <= 12, 1, 0)
+pines$DISEASE <- ifelse(pines$DSTRBCD1 >= 20 & pines$DSTRBCD1 <= 22, 1, 0)
+pines$FIRE <- ifelse(pines$DSTRBCD1 >= 30 & pines$DSTRBCD1 <= 32, 1, 0)
+
+#Centered/scaled MAT/MAP
 
 #Get map for all of Idaho
 idaho_bbox <- c(-117.25,41.9,-110.95,49.05)
@@ -31,6 +43,9 @@ idaho_map <- get_stadiamap(bbox = idaho_bbox, zoom = 7)
 #Get map focused on area of study
 forest_bbox <- c(-117.25,45,-114,47.5)
 forest_map <- get_stadiamap(bbox = forest_bbox, zoom = 9)
+
+#Convert pines dataset to sf object with CRS for NAD83/Idaho Transverse Mercator
+pines_sf <- st_as_sf(pines, coords = c("LON", "LAT"), crs = 8826)
 ```
 
 Plots for exploration/visual assessment:
@@ -57,17 +72,12 @@ ggmap(forest_map) +
 
 #Plot agent data
 
-    #Need a little more data wrangling here? Thinking binary agent columns, and just want to  make sure all NA's would be 0's.
-
 #Size data points by proportion dead, color by competition
 ggmap(forest_map) +
   geom_point(aes(x = LON, y = LAT, color = BALIVE, size = DEADPROP), data = data.frame(pines))  +
   scale_color_viridis(option = "mako", direction = -1) 
 ```
-
-Model fitting:
-
-Mortality ~ population_density + fire_exposure + insect_exposure + disease_exposure + MAT + MAP + spatial random effect
+Data transformation into logit space:
 
 ```{r}
 #Since we need to limit our response variable to between 0 and 1, define some transformations 
@@ -75,29 +85,50 @@ logit <- function(x) log(x / (1 - x))
 expit <- function(x) 1 / (1 + exp(-x))
 
 #Transforming data so we can work in the transformed space without infinite values, see generalized_response slides page 31
-pines$DEADPROP_adj <- pines$DEADPROP
+pines_sf$DEADPROP_adj <- pines_sf$DEADPROP
 #Replace observations of none dead with 0.01
-pines$DEADPROP_adj[pines$DEADPROP == 0] <- 0.01
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 0] <- 0.01
 #Replace observations of all dead with 0.99
-pines$DEADPROP_adj[pines$DEADPROP == 1] <- 0.99
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.99
 
 #Transform data into new column
-pines$logit_DEADPROP_adj <- logit(pines$DEADPROP_adj)
+pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
+```
+
+Model fitting:
+
+```{r}
+#Playing around with fitting models to the dataset just for climate variables for now
+#MAT and MAP formula with interactions
+logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
+
+#Transformed response, see generalized_response slides page 32
+fit_climate_transform_exp <- splm(logit_climate_formula, data = pines_sf, spcov_type = "exponential",
+estmethod = "sv-wls")
+summary(fit_transform_exp)
+
+#Beta, no spatial covariance, see generalized_response slides page 35
+climate_formula <- DEADPROP_adj ~ precip * temp
+fit_beta <- spglm(climate_formula, data = pines, family = beta, spcov_type = "none")
+
+#GLM with beta response, see generalized_response slides page 36
+fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
+  spcov_initial = spcov_initial("matern", extra = 2, known = "extra"))
+fit_climate_beta_exp <- spglm(climate_formula, data = pines_sf, family = beta,
+spcov_type = "exponential")
+
+
 
 #Intercept-only model
 intercept_formula_transform <- logit_DEADPROP ~ 1
 
 #Competition
-competition_formula_transform <- logit_DEADPROP ~ BALIVE
+competition_formula_transform <- logit_DEADPROP_adj ~ BALIVE
 
 #Fire, insect, disease with and without interactions
 
-
-
-#MAT and MAP with interactions
-logit_climaten_formula <- logit_DEADPROP ~ precip * temp
-
 #Combined model
+#Mortality ~ population_density + fire_exposure + insect_exposure + disease_exposure + MAT + MAP + spatial random effect
 ```
 
 Model diagnostics:
