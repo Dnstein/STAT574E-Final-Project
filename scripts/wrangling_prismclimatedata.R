@@ -47,8 +47,13 @@ writeRaster(crop_temp_norms, "outputs/crop_temp_norms_idaho.tif", overwrite = TR
 # convert to df for plotting in ggplot
 ppt_df <- as.data.frame(crop_ppt_norms, xy = TRUE, na.rm = TRUE)
 colnames(ppt_df) <- c("x", "y", "precip")
+
+write_csv(ppt_df, "data/precip_idaho.csv")
+
 temp_df <- as.data.frame(crop_temp_norms, xy = TRUE, na.rm = TRUE)
 colnames(temp_df) <- c("x", "y", "tmean")
+
+write_csv(temp_df, "data/temp_idaho.csv")
 
 # making idaho into df
 idaho_boundary_df <- as.data.frame(geom(idaho_spat))
