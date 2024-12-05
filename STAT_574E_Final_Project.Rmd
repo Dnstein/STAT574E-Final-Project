@@ -1,6 +1,8 @@
 ---
 title: "Idaho Pines Mortality Analysis"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 date: "2024-11-15"
 ---
 
@@ -36,8 +38,6 @@ pines$INSECT <- ifelse(pines$DSTRBCD1 >= 10 & pines$DSTRBCD1 <= 12, 1, 0)
 pines$DISEASE <- ifelse(pines$DSTRBCD1 >= 20 & pines$DSTRBCD1 <= 22, 1, 0)
 pines$FIRE <- ifelse(pines$DSTRBCD1 >= 30 & pines$DSTRBCD1 <= 32, 1, 0)
 
-#Centered/scaled MAT/MAP
-
 #Get map for all of Idaho
 idaho_bbox <- c(-117.25,41.9,-110.95,49.05)
 idaho_map <- get_stadiamap(bbox = idaho_bbox, zoom = 7)
@@ -48,6 +48,14 @@ forest_map <- get_stadiamap(bbox = forest_bbox, zoom = 9)
 
 #Convert pines dataset to sf object with CRS for NAD83/Idaho Transverse Mercator
 pines_sf <- st_as_sf(pines, coords = c("LON", "LAT"), crs = 8826)
+
+#Reading in statewide climate data so we can make predictions later on
+idaho_clim <- read_csv("data/precip_idaho.csv")
+idaho_temp <- read_csv("data/temp_idaho.csv")
+idaho_clim$temp <- idaho_temp$tmean
+
+#Convert dataset to sf object with same CRS as pines_sf
+idaho_clim_sf <- st_as_sf(idaho_clim, coords = c("x", "y"), crs = 8826)
 ```
 
 Plots for exploration/visual assessment:
@@ -149,13 +157,36 @@ pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.99
 pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
 ```
 
+Define formulas for model fitting:
+
+```{r}
+#MAT and MAP formula with and without interactions
+logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
+logit_climate_formula_noi <- logit_DEADPROP_adj ~ precip + temp
+
+#Intercept-only model
+intercept_formula_transform <- logit_DEADPROP ~ 1
+intercept_formula <- DEADPROP ~ 1
+
+#Competition
+competition_formula_transform <- logit_DEADPROP_adj ~ BALIVE
+competition_formula <- DEADPROP_adj ~ BALIVE
+
+#Fire, insect, disease without interactions
+dist_formula_transform <- logit_DEADPROP_adj ~ FIRE + INSECT + DISEASE
+dist_formula <- DEADPROP_adj ~ FIRE + INSECT + DISEASE
+
+#Combined model
+combined_formula_transform <- logit_DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
+combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
+```
+
 Model fitting:
 
 ```{r}
+#Let's turn this section into a function so that we don't have to redo it all manually
+
 #Playing around with fitting models to the dataset just for climate variables for now
-#MAT and MAP formula with interactions
-logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
-logit_climate_formula_noi <- logit_DEADPROP_adj ~ precip + temp
 
 #Transformed response, see generalized_response slides page 32
 fit_climate_transform_exp <- splm(logit_climate_formula, data = pines_sf, spcov_type = "exponential",
@@ -166,7 +197,7 @@ confint(fit_climate_transform_exp)
 
 #Beta, no spatial covariance, see generalized_response slides page 35
 climate_formula <- DEADPROP_adj ~ precip * temp
-fit_climate_beta <- spglm(climate_formula, data = pines, family = beta, spcov_type = "none")
+fit_climate_beta <- spglm(climate_formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
 fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
@@ -174,19 +205,11 @@ fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
 fit_climate_beta_exp <- spglm(climate_formula, data = pines_sf, family = beta,
 spcov_type = "exponential")
 
-#Ceci, can you pull in the climate data for the state here so we can make some beautiful prediction plots for the presentation?
+#Make some predictions based on scaled and centered climate data
+idaho_clim_sf$pred_beta_matern <- predict(fit_climate_beta_mat, newdata = idaho_clim_sf, type = "response")
 
-#Intercept-only model
-intercept_formula_transform <- logit_DEADPROP ~ 1
-
-#Competition
-competition_formula_transform <- logit_DEADPROP_adj ~ BALIVE
-
-#Fire, insect, disease with and without interactions
-
-#Combined model
-combined_formula_transform <- logit_DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
-combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
+#Plot of predictions based on beta matern model
+plot(idaho_clim_sf["pred_beta_matern"], key.pos = 1, axes = TRUE, key.width = lcm(1.3), key.length = 1.0)
 ```
 
 Model diagnostics:

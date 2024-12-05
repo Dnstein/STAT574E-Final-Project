@@ -85,9 +85,9 @@ write_csv(pines_dat, "data/pines_plotsdat.csv")
 pines_dat <- read_csv("data/pines_plotsdat.csv")
 pines_dat <- pines_dat %>%
   mutate(
-    precip_scaled = as.vector(scale(precip)),
-    temp_scaled = as.vector(scale(temp)),
-    BALIVE_scaled = as.vector(scale(BALIVE))
+    precip = as.vector(scale(precip)),
+    temp = as.vector(scale(temp)),
+    BALIVE = as.vector(scale(BALIVE))
   )
 
 
