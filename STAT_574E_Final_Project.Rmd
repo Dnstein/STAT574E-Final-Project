@@ -110,6 +110,9 @@ Define formulas for model fitting:
 logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
 logit_climate_formula_noi <- logit_DEADPROP_adj ~ precip + temp
 
+climate_formula <- DEADPROP_adj ~ precip * temp
+climate_formula_noi <- DEADPROP_adj ~ precip + temp
+
 #Intercept-only model
 intercept_formula_transform <- logit_DEADPROP ~ 1
 intercept_formula <- DEADPROP ~ 1
@@ -142,7 +145,6 @@ confint(fit_climate_transform_exp)
 #Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
-climate_formula <- DEADPROP_adj ~ precip * temp
 fit_climate_beta <- spglm(climate_formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
@@ -151,11 +153,51 @@ fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
 fit_climate_beta_exp <- spglm(climate_formula, data = pines_sf, family = beta,
 spcov_type = "exponential")
 
+
+
 #Make some predictions based on scaled and centered climate data
 idaho_clim_sf$pred_beta_matern <- predict(fit_climate_beta_mat, newdata = idaho_clim_sf, type = "response")
 
 #Plot of predictions based on beta matern model
 plot(idaho_clim_sf["pred_beta_matern"], key.pos = 1, axes = TRUE, key.width = lcm(1.3), key.length = 1.0)
+```
+
+Model fitting function:
+
+```{r, message = FALSE}
+model_fitting <- function(formula_transform, formula) {
+
+#Transformed response, see generalized_response slides page 32
+fit_transform_exp <- splm(formula_transform, data = pines_sf, spcov_type = "exponential",
+estmethod = "sv-wls")
+summary(fit_transform_exp)
+confint(fit_transform_exp)
+#Our confint here covers zero for everything except temperature with the no interaction formula
+
+#Beta, no spatial covariance, see generalized_response slides page 35
+fit_beta <- spglm(formula, data = pines_sf, family = beta, spcov_type = "none")
+
+#GLM with beta response, see generalized_response slides page 36
+fit_beta_mat <- spglm(formula, data = pines_sf, family = beta,
+  spcov_initial = spcov_initial("matern", extra = 2, known = "extra"))
+fit_beta_exp <- spglm(formula, data = pines_sf, family = beta,
+spcov_type = "exponential")
+
+print(AIC(fit_beta, fit_beta_exp, fit_beta_mat))
+
+t(sapply(list(
+  "beta" = fit_beta,
+  "beta exp" = fit_beta_exp,
+  "beta mat" = fit_beta_mat
+), function(x) loocv(x)[, 1:3]))
+}
+```
+
+Trying out the model_fitting function:
+
+```{r}
+#Mostly useful for quick exploration right now, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
+model_fitting(competition_formula_transform, competition_formula)
 ```
 
 Model diagnostics:
