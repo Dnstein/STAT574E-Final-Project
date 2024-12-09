@@ -193,9 +193,6 @@ Define formulas for model fitting:
 
 ```{r}
 
-
-formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE
-
 #MAT and MAP formula with and without interactions
 climate_formula_transform <- logit_DEADPROP_adj ~ precip * temp
 climate_formula_transform_noi <- logit_DEADPROP_adj ~ precip + temp
@@ -215,7 +212,6 @@ competition_formula <- DEADPROP_adj ~ BALIVE
 dist_formula_transform <- logit_DEADPROP_adj ~ FIRE + INSECT + DISEASE
 dist_formula <- DEADPROP_adj ~ FIRE + INSECT + DISEASE
 
-
 #Combined model
 combined_formula_transform <- logit_DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
 combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + temp
@@ -225,6 +221,9 @@ Model fitting:
 
 
 ```{r, eval=FALSE}
+#Let's turn this section into a function so that we don't have to redo it all manually
+
+#Playing around with fitting models to the dataset just for climate variables for now
 
 #Transformed response, see generalized_response slides page 32
 fit_climate_transform_exp <- splm(logit_climate_formula, data = pines_sf, spcov_type = "exponential",
@@ -263,7 +262,8 @@ confint(fit_transform_exp)
 #Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
-fit_beta_combined <- spglm(combined_formula, data = pines_sf, family = beta, spcov_type = "none")
+
+fit_beta <- spglm(formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
 fit_beta_mat <- spglm(formula, data = pines_sf, family = beta,
@@ -305,12 +305,13 @@ print(aic_mods)
 t(sapply(list("glm" = fit_noclimate_beta, "spglm" = fit_noclimate_beta_exp), loocv))
 
 # PLOT RESIDUALS ON MAP FOR SPATIAL AND NONSPATIAL MODEL ABOVE
+
+
 ```
 
 Model diagnostics:
 
 ```{r}
-
 
 # forest plot of effect sizes for model
 model_summary <- broom::tidy(fit_beta_combined, conf.int = TRUE)
@@ -350,6 +351,9 @@ ggplot(model_summary_noclim, aes(x = term, y = estimate, ymin = conf.low, ymax =
 
 
 #Put residual plots here
+
+
+
 #Climate only diagnostics
 #AIC(fit_climate_beta, fit_climate_beta_exp, fit_climate_beta_mat)
 
@@ -364,7 +368,6 @@ esv_nocliamte <- esv(formula_noclimate, pines_sf)
 plot(esv_nocliamte)
 esv_combined <- esv(combined_formula, pines_sf)
 plot(esv_combined)
-
 
 ```
 
