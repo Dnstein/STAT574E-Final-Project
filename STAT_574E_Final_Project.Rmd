@@ -69,23 +69,34 @@ register_google(key = api_key)
 bbox <- c(left = -116.4615, bottom = 42.0000, right = -111.0437, top = 49.0000)
 forest_map <- get_stadiamap(bbox = bbox, zoom = 6, maptype = "stamen_terrain") # Load the state boundary for 
 
+nez_perce_clearwater_bbox <- c(left = -117.0, bottom = 45.0, right = -114.0, top = 47.5)
+nezperece_clearwater_map <- get_stadiamap(bbox = nez_perce_clearwater_bbox, zoom = 7)
+
 ID_state <- tigris::states() %>% filter(STATEFP == "16") %>% st_transform(crs = st_crs(4326)) %>% st_as_sf()
 
 #Plot locations
 ggmap(idaho_map) +
   geom_point(aes(x = LON, y = LAT), data = data.frame(pines)) +
-   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
+  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 1.5) +  # Increase size for bolder border
   scale_color_viridis(option = "inferno", direction = -1, name = "Dead Proportion") +
   labs(title = "Plot Locations", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
 
 #Dead proportion of trees
-ggmap(idaho_map) + 
+ggmap(nezperece_clearwater_map) + 
   geom_point(aes(x = LON, y = LAT, color = DEADPROP, size = DEADPROP), data = pines) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(option = "inferno", direction = -1, name = "Dead Proportion") +
   labs(title = "Proportion of Dead Trees", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
 
 #Proportion of dead trees by Temperature
 ggmap(idaho_map) +
@@ -93,7 +104,11 @@ ggmap(idaho_map) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(option = "rocket", direction = -1) +
   labs(title = "Proportion of Dead Trees by Temperature", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
 
 #Proportion of dead trees by Precipitation
 ggmap(idaho_map) +
@@ -101,7 +116,11 @@ ggmap(idaho_map) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(direction = -1) +
     labs(title = "Proportion of Dead Trees by Precipitation", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
 
 #Proportion of dead trees by competition
 ggmap(idaho_map) +
@@ -109,7 +128,11 @@ ggmap(idaho_map) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(option = "mako", direction = -1) +
   labs(title = "Proportion of Dead Trees by Competition", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
 ```
 
 ```{r}
