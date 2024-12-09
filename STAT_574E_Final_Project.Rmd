@@ -76,10 +76,19 @@ ID_state <- tigris::states() %>% filter(STATEFP == "16") %>% st_transform(crs = 
 
 #Plot locations
 ggmap(idaho_map) +
-  geom_point(aes(x = LON, y = LAT), data = data.frame(pines)) +
-  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 1.5) +  # Increase size for bolder border
+  geom_point(aes(x = LON, y = LAT, color = "Plot Locations"), data = data.frame(pines), shape = 21, fill = "#a24857", color = "black", alpha = 0.75) +
+  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", linewidth = 1.25) +  # Increase size for bolder border
   scale_color_viridis(option = "inferno", direction = -1, name = "Dead Proportion") +
   labs(title = "Plot Locations", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
+  annotation_north_arrow(
+    location = "tr",  # Top left
+    which_north = "true",
+    style = north_arrow_fancy_orienteering
+  ) +
+  annotation_scale(
+    location = "bl",  # Bottom left
+    width_hint = 0.3  # Adjust width
+  ) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(size = 7),
@@ -131,8 +140,8 @@ ggmap(nezperece_clearwater_map) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(size = 7),
-    axis.text.y = element_text(size = 7) 
-  )
+    axis.text.y = element_text(size = 7))
+  
 ```
 
 ```{r}
@@ -222,6 +231,7 @@ confint(fit_climate_transform_exp)
 #Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
+climate_formula <- DEADPROP_adj ~ precip + temp
 fit_climate_beta <- spglm(climate_formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
