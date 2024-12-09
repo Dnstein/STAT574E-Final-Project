@@ -273,7 +273,7 @@ t(sapply(list(
 Trying out the model_fitting function:
 
 ```{r}
-#Mostly useful for quick exploration right now, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
+#Mostly useful for quick exploration, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
 model_fitting(competition_formula_transform, competition_formula)
 ```
 
