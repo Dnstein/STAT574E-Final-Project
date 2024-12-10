@@ -22,6 +22,7 @@ library(sf)
 library(tidyr)
 library(tigris)
 library(dplyr)
+library(ggspatial)
 ```
 
 Get data/maps:
@@ -143,8 +144,9 @@ ggmap(nezperece_clearwater_map) +
     axis.text.y = element_text(size = 7))
   
 ```
+Old code for maps, can delete for supplementary materials:
 
-```{r}
+```{r, eval = FALSE}
 #Simple statewide map to orient the project
 ggmap(idaho_map) +
   geom_point(aes(x = LON, y = LAT), data = data.frame(pines))
@@ -200,8 +202,8 @@ climate_formula <- DEADPROP_adj ~ precip * temp
 climate_formula_noi <- DEADPROP_adj ~ precip + temp
 
 #Intercept-only model
-intercept_formula_transform <- logit_DEADPROP ~ 1
-intercept_formula <- DEADPROP ~ 1
+intercept_formula_transform <- logit_DEADPROP_adj ~ 1
+intercept_formula <- DEADPROP_adj ~ 1
 
 #Competition
 competition_formula_transform <- logit_DEADPROP_adj ~ BALIVE
@@ -274,7 +276,6 @@ t(sapply(list(
   "beta exp" = fit_beta_exp,
   "beta mat" = fit_beta_mat
 ), function(x) loocv(x)[, 1:3]))
-
 }
 ```
 
@@ -282,6 +283,7 @@ Trying out the model_fitting function:
 
 ```{r}
 #Mostly useful for quick exploration right now, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
+model_fitting(intercept_formula_transform, intercept_formula)
 model_fitting(competition_formula_transform, competition_formula)
 model_fitting(climate_formula_transform, climate_formula)
 model_fitting(dist_formula_transform, dist_formula)
@@ -307,6 +309,8 @@ Model diagnostics:
 esv_combined <- esv(combined_formula, pines_sf)
 plot(esv_combined)
 
+pines_esv <- esv(DEADPROP_adj ~ 1, pines_sf)
+plot(pines_esv)
 ```
 
 Residuals plot for the best fit model per AIC- no combined formula with no spatial covariance
@@ -314,7 +318,6 @@ Residuals plot for the best fit model per AIC- no combined formula with no spati
 ```{r}
 fit_combined_beta <- spglm(combined_formula, data = pines_sf, family = beta, spcov_type = "none")
 
-#Is this actually what I want to be looking at?
 pines_sf$combined_beta_residuals <- fit_combined_beta$residuals$response
 
 ggmap(nezperece_clearwater_map) +
@@ -335,4 +338,45 @@ qqline(pines_sf$combined_beta_residuals)
 plot(density(pines_sf$combined_beta_residuals))
 
 confint(fit_combined_beta)
+```
+Exploration of null model:
+
+```{r}
+fit_null <- spglm(DEADPROP_adj ~ 1, data = pines_sf, family = beta, spcov_type = "none")
+
+pines_sf$null_residuals <- fit_null$residuals$response
+
+ggmap(nezperece_clearwater_map) +
+  geom_sf(aes(col = null_residuals),
+    data = pines_sf, inherit.aes = F) + scale_color_gradient2(low = "#2166ac", mid = "#f7f7f7", high = "#b2182b")  +
+  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5)  +
+  labs(title = "Null Model Residuals", x = "Longitude", y = "Latitude", color = "Response Residuals") + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
+
+# Q-Q plot for this model
+qqnorm(pines_sf$null_residuals)
+qqline(pines_sf$null_residuals)
+
+plot(density(pines_sf$null_residuals))
+
+confint(fit_null)
+```
+```
+
+Trying to get the semivariograms with the lines:
+
+```{r}
+exp_cov <- function(d, ie, de, range){
+  ie + de * (1 - exp(-d/range))
+}
+esv_combined <- esv(combined_formula, pines_sf)
+plot(esv_combined)
+distances <- seq(0, 1.2, l = 1e2) 
+lines(distances, exp_cov(distances, fit_combined_beta$coefficients$spcov['ie'],
+                          fit_combined_beta$coefficients$spcov['de'],
+                          fit_combined_beta$coefficients$spcov['range']), lty = 2, lwd = 2, col = "gray")
 ```
