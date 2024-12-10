@@ -107,6 +107,10 @@ pines_idaho_filt <- pines_idaho_all %>% filter(CYCLE == 2)
 unique_plot_ids <- pines_idaho_filt %>% summarise(n_unique = n_distinct(PLOT_COMPOSITE_ID))
 print(unique_plot_ids)
 
+
+pines_idaho_filt <- pines_idaho_filt %>% 
+  filter(CONDPROP_UNADJ >= 0.9)
+
 #Create new column called "TOTALTREE" that tallies number of trees for each unique PLOT_COMPOSITE_ID.
 #Create new column called "TOTALDEAD" that tallies number of dead trees for each unique PLOT_COMPOITE_ID
 #Create new column called "DEADPROP" that is the proportion of dead/total trees for each unique PLOT_COMPOSITE_ID
