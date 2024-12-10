@@ -108,7 +108,7 @@ ggmap(nezperece_clearwater_map) +
   )
 
 #Proportion of dead trees by Temperature
-ggmap(idaho_map) +
+ggmap(nezperece_clearwater_map) +
   geom_point(aes(x = LON, y = LAT, color = temp, size = DEADPROP), data = data.frame(pines))  +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(option = "rocket", direction = -1) +
@@ -120,7 +120,7 @@ ggmap(idaho_map) +
   )
 
 #Proportion of dead trees by Precipitation
-ggmap(idaho_map) +
+ggmap(nezperece_clearwater_map) +
   geom_point(aes(x = LON, y = LAT, color = precip, size = DEADPROP), data = data.frame(pines))  +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(direction = -1) +
@@ -132,7 +132,7 @@ ggmap(idaho_map) +
   )
 
 #Proportion of dead trees by competition
-ggmap(idaho_map) +
+ggmap(nezperece_clearwater_map) +
   geom_point(aes(x = LON, y = LAT, color = BALIVE, size = DEADPROP), data = data.frame(pines))  +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5) + 
   scale_color_viridis(option = "mako", direction = -1) +
@@ -192,9 +192,10 @@ pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
 Define formulas for model fitting:
 
 ```{r}
+
 #MAT and MAP formula with and without interactions
-logit_climate_formula <- logit_DEADPROP_adj ~ precip * temp
-logit_climate_formula_noi <- logit_DEADPROP_adj ~ precip + temp
+climate_formula_transform <- logit_DEADPROP_adj ~ precip * temp
+climate_formula_transform_noi <- logit_DEADPROP_adj ~ precip + temp
 
 climate_formula <- DEADPROP_adj ~ precip * temp
 climate_formula_noi <- DEADPROP_adj ~ precip + temp
@@ -218,7 +219,8 @@ combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + t
 
 Model fitting:
 
-```{r}
+
+```{r, eval=FALSE}
 #Let's turn this section into a function so that we don't have to redo it all manually
 
 #Playing around with fitting models to the dataset just for climate variables for now
@@ -233,6 +235,7 @@ confint(fit_climate_transform_exp)
 #Beta, no spatial covariance, see generalized_response slides page 35
 climate_formula <- DEADPROP_adj ~ precip + temp
 fit_climate_beta <- spglm(climate_formula, data = pines_sf, family = beta, spcov_type = "none")
+
 
 #GLM with beta response, see generalized_response slides page 36
 fit_climate_beta_mat <- spglm(climate_formula, data = pines_sf, family = beta,
@@ -255,11 +258,11 @@ model_fitting <- function(formula_transform, formula) {
 #Transformed response, see generalized_response slides page 32
 fit_transform_exp <- splm(formula_transform, data = pines_sf, spcov_type = "exponential",
 estmethod = "sv-wls")
-summary(fit_transform_exp)
 confint(fit_transform_exp)
 #Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
+
 fit_beta <- spglm(formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
@@ -275,6 +278,7 @@ t(sapply(list(
   "beta exp" = fit_beta_exp,
   "beta mat" = fit_beta_mat
 ), function(x) loocv(x)[, 1:3]))
+
 }
 ```
 
@@ -283,20 +287,114 @@ Trying out the model_fitting function:
 ```{r}
 #Mostly useful for quick exploration right now, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
 model_fitting(competition_formula_transform, competition_formula)
+model_fitting(climate_formula_transform, climate_formula)
+model_fitting(dist_formula_transform, dist_formula)
+model_fitting(combined_formula_transform, combined_formula)
+
+#FITTING ONLY BALIVE AND DISTURBANCE
+fit_noclimate_beta <- spglm(formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE
+, data = pines_sf, family = beta, spcov_type = "none")
+fit_noclimate_beta_exp <- spglm(formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE
+, data = pines_sf, family = beta,
+spcov_type = "exponential")
+
+aic_mods <- AIC(fit_noclimate_beta, fit_noclimate_beta_exp)
+print(aic_mods)
+
+#LOOCV
+t(sapply(list("glm" = fit_noclimate_beta, "spglm" = fit_noclimate_beta_exp), loocv))
+
+# PLOT RESIDUALS ON MAP FOR SPATIAL AND NONSPATIAL MODEL ABOVE
+
+
 ```
 
 Model diagnostics:
 
 ```{r}
+
+# forest plot of effect sizes for model
+model_summary <- broom::tidy(fit_beta_combined, conf.int = TRUE)
+model_summary <- model_summary %>% filter(term != "(Intercept)")
+
+ggplot(model_summary, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +  # Flip coordinates for horizontal plot
+  geom_hline(yintercept = 0, color = "darkred",linetype = "dashed", size = 1) +  labs(
+    x = "Coefficients", 
+    y = "Estimate (with 95% CI)") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),  # Increase size of x-axis text
+    axis.text.y = element_text(size = 12),  # Increase size of y-axis text
+    axis.title.x = element_text(size = 14, face = "bold"),  # Increase size and bold x-axis title
+    axis.title.y = element_text(size = 14, face = "bold")   # Increase size and bold y-axis title
+  )
+
+summary(fit_noclimate_beta_exp)
+model_summary_noclim <- broom::tidy(fit_noclimate_beta_exp, conf.int = TRUE)
+model_summary_noclim <- model_summary_noclim %>% filter(term != "(Intercept)")
+
+ggplot(model_summary_noclim, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange(color = "cadetblue") +
+  coord_flip() +  # Flip coordinates for horizontal plot
+  geom_hline(yintercept = 0, color = "darkred",linetype = "dashed", size = 1) +  labs(
+    x = "Coefficients", 
+    y = "Estimate (with 95% CI)") +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(size = 12),  # Increase size of x-axis text
+    axis.text.y = element_text(size = 12),  # Increase size of y-axis text
+    axis.title.x = element_text(size = 14, face = "bold"),  # Increase size and bold x-axis title
+    axis.title.y = element_text(size = 14, face = "bold")   # Increase size and bold y-axis title
+  )
+
+
 #Put residual plots here
 
 
-#Climate only diagnostics
-AIC(fit_climate_beta, fit_climate_beta_exp, fit_climate_beta_mat)
 
-t(sapply(list(
-  "beta" = fit_climate_beta,
-  "beta exp" = fit_climate_beta_exp,
-  "beta mat" = fit_climate_beta_mat
-), function(x) loocv(x)[, 1:3]))
+#Climate only diagnostics
+#AIC(fit_climate_beta, fit_climate_beta_exp, fit_climate_beta_mat)
+
+#t(sapply(list(
+#  "beta" = fit_climate_beta,
+#  "beta exp" = fit_climate_beta_exp,
+#  "beta mat" = fit_climate_beta_mat
+#), function(x) loocv(x)[, 1:3]))
+
+#Emperical semivariogram
+esv_nocliamte <- esv(formula_noclimate, pines_sf)
+plot(esv_nocliamte)
+esv_combined <- esv(combined_formula, pines_sf)
+plot(esv_combined)
+
+```
+
+Residuals plot for the best fit model per AIC- no combined formula with no spatial covariance
+
+```{r}
+fit_combined_beta <- spglm(combined_formula, data = pines_sf, family = beta, spcov_type = "none")
+
+#Is this actually what I want to be looking at?
+pines_sf$combined_beta_residuals <- fit_combined_beta$residuals$response
+
+ggmap(nezperece_clearwater_map) +
+  geom_sf(aes(col = combined_beta_residuals),
+    data = pines_sf, inherit.aes = F) + scale_color_gradient2(low = "#2166ac", mid = "#f7f7f7", high = "#b2182b")  +
+  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", size = 0.5)  +
+  labs(title = "Combined Model Residuals", x = "Longitude", y = "Latitude", color = "Response Residuals") + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
+
+# Q-Q plot for this model
+qqnorm(pines_sf$combined_beta_residuals)
+qqline(pines_sf$combined_beta_residuals)
+
+plot(density(pines_sf$combined_beta_residuals))
+
+confint(fit_combined_beta)
 ```
