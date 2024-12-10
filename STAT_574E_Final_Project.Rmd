@@ -76,7 +76,7 @@ ID_state <- tigris::states() %>% filter(STATEFP == "16") %>% st_transform(crs = 
 
 #Plot locations
 ggmap(idaho_map) +
-  geom_point(aes(x = LON, y = LAT, color = "Plot Locations"), data = data.frame(pines), shape = 21, fill = "#a24857", color = "black", alpha = 0.75) +
+  geom_point(aes(x = LON, y = LAT, color = "Plot Locations"), data = data.frame(grouped_dat), shape = 21, fill = "#a24857", color = "black", alpha = 0.75) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", linewidth = 1.25) +  # Increase size for bolder border
   scale_color_viridis(option = "inferno", direction = -1, name = "Dead Proportion") +
   labs(title = "Plot Locations", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
@@ -144,6 +144,41 @@ ggmap(nezperece_clearwater_map) +
   
 ```
 
+
+Data Exploration of Predictor-Response Variables
+
+```{r}
+
+summary_insect <- summary(pines_sf$DEADPROP[pines_sf$INSECT == 1])
+summary_disease <- summary(pines_sf$DEADPROP[pines_sf$DISEASE == 1])
+summary_fire <- summary(pines_sf$DEADPROP[pines_sf$FIRE == 1])
+
+pines_sf$INSECT <- as.numeric(pines_sf$INSECT)
+pines_sf$DISEASE <- as.numeric(pines_sf$DISEASE)
+pines_sf$FIRE <- as.numeric(pines_sf$FIRE)
+
+pines_sf$disturbance_type <- with(pines_sf, ifelse(
+  INSECT + DISEASE + FIRE == 0, "None",
+  ifelse(INSECT == 1 & DISEASE == 0 & FIRE == 0, "INSECT",
+    ifelse(DISEASE == 1 & INSECT == 0 & FIRE == 0, "DISEASE",
+      ifelse(FIRE == 1 & INSECT == 0 & DISEASE == 0, "FIRE",
+        ifelse(INSECT == 1 & DISEASE == 1 & FIRE == 0, "INSECT, DISEASE",
+          ifelse(INSECT == 1 & FIRE == 1 & DISEASE == 0, "INSECT, FIRE",
+            ifelse(DISEASE == 1 & FIRE == 1 & INSECT == 0, "DISEASE, FIRE",
+              "INSECT, DISEASE, FIRE"
+            )
+          )
+        )
+      )
+    )
+  )
+))
+
+table(pines_sf$disturbance_type)
+
+
+```
+
 ```{r}
 #Simple statewide map to orient the project
 ggmap(idaho_map) +
@@ -181,9 +216,9 @@ expit <- function(x) 1 / (1 + exp(-x))
 #Transforming data so we can work in the transformed space without infinite values, see generalized_response slides page 31
 pines_sf$DEADPROP_adj <- pines_sf$DEADPROP
 #Replace observations of none dead with 0.01
-pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 0] <- 0.01
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 0] <- 0.0001
 #Replace observations of all dead with 0.99
-pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.99
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.9999
 
 #Transform data into new column
 pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
@@ -350,10 +385,6 @@ ggplot(model_summary_noclim, aes(x = term, y = estimate, ymin = conf.low, ymax =
   )
 
 
-#Put residual plots here
-
-
-
 #Climate only diagnostics
 #AIC(fit_climate_beta, fit_climate_beta_exp, fit_climate_beta_mat)
 
@@ -398,3 +429,4 @@ plot(density(pines_sf$combined_beta_residuals))
 
 confint(fit_combined_beta)
 ```
+
