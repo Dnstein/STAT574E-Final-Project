@@ -1,0 +1,85 @@
+---
+title: "Disturbance Agent Plots"
+output: html_document
+date: "2024-12-09"
+---
+```{r, message = FALSE}
+#Read in FIA data
+pines <- read_csv("data/pines_plotsdat.csv")
+
+#Remove any datapoints that we can't use due to NA values for predictor variables
+pines <- pines %>% drop_na(BALIVE)
+
+#Create binary presence/absence columns for agent classes of primary disturbance codes
+pines$INSECT <- ifelse(pines$DSTRBCD1 >= 10 & pines$DSTRBCD1 <= 12, 1, 0)
+pines$DISEASE <- ifelse(pines$DSTRBCD1 >= 20 & pines$DSTRBCD1 <= 22, 1, 0)
+pines$FIRE <- ifelse(pines$DSTRBCD1 >= 30 & pines$DSTRBCD1 <= 32, 1, 0)
+
+#Get map for all of Idaho
+idaho_bbox <- c(-117.25,41.9,-110.95,49.05)
+idaho_map <- get_stadiamap(bbox = idaho_bbox, zoom = 7)
+
+#Get map focused on area of study
+forest_bbox <- c(-117.25,45,-114,47.5)
+forest_map <- get_stadiamap(bbox = forest_bbox, zoom = 9)
+
+#Convert pines dataset to sf object with CRS for NAD83/Idaho Transverse Mercator
+pines_sf <- st_as_sf(pines, coords = c("LON", "LAT"), crs = 8826)
+```
+
+```{r}
+
+
+#Filter for dead trees
+filtered_pines_2 <- pines %>% filter(STATUSCD == 2)
+
+ # Load the necessary libraries
+
+# Filter the dataset for STATUSCD and specific disturbance codes
+filtered_pines_2 <- filtered_pines_2 %>%
+  filter(STATUSCD == 2) %>%
+  filter(DSTRBCD1 %in% c(10, 11, 12, 20, 21, 22, 30, 31, 32)) %>%
+  mutate(Disturbance_Type = case_when(
+    DSTRBCD1 %in% c(10, 11, 12) ~ "Insect",
+    DSTRBCD1 %in% c(20, 21, 22) ~ "Disease",
+    DSTRBCD1 %in% c(30, 31, 32) ~ "Fire"
+  ))
+
+# Plot the histogram with customized colors
+ggplot(filtered_pines_2, aes(x = Disturbance_Type, fill = Disturbance_Type)) +
+  geom_histogram(stat = "count", color = "black", binwidth = 1) +
+  scale_fill_manual(values = c("Insect" = "darkblue", "Disease" = "darkorange", "Fire" = "darkred")) +
+  labs(title = "Tree Mortality by Disturbance Type",
+       x = "Exposure to Disturbance",
+       y = "Number of Plots",
+       fill = "Disturbance Type") +
+  theme_minimal()
+
+# Filter the dataset for STATUSCD and specific disturbance codes
+filtered_pines_2 <- pines %>%
+  filter(STATUSCD == 2) %>%
+  filter(DSTRBCD1 %in% c(10, 11, 12, 20, 21, 22, 30, 31, 32)) %>%
+  mutate(Disturbance_Type = case_when(
+    DSTRBCD1 %in% c(10, 11, 12) ~ "Insect",
+    DSTRBCD1 %in% c(20, 21, 22) ~ "Disease",
+    DSTRBCD1 %in% c(30, 31, 32) ~ "Fire"
+  ))
+
+# Calculate average proportion of dead trees by disturbance type
+avg_dead_prop <- filtered_pines_2 %>%
+  group_by(Disturbance_Type) %>%
+  summarise(Avg_DeadProp = mean(DEADPROP, na.rm = TRUE))
+
+# Create the plot
+ggplot(avg_dead_prop, aes(x = Disturbance_Type, y = Avg_DeadProp, fill = Disturbance_Type)) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_fill_manual(values = c("Insect" = "blue", "Disease" = "orange", "Fire" = "red")) +
+  labs(title = "Proportion of Dead Trees by Disturbance Type",
+       x = "Disturbance Type",
+       y = "Average Proportion of Dead Trees",
+       fill = "Disturbance Type") +
+  theme_minimal()
+
+
+```
+
