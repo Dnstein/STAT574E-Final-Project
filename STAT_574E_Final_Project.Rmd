@@ -223,9 +223,9 @@ expit <- function(x) 1 / (1 + exp(-x))
 #Transforming data so we can work in the transformed space without infinite values, see generalized_response slides page 31
 pines_sf$DEADPROP_adj <- pines_sf$DEADPROP
 #Replace observations of none dead with 0.01
-pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 0] <- 0.0001
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 0] <- 0.01
 #Replace observations of all dead with 0.99
-pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.9999
+pines_sf$DEADPROP_adj[pines_sf$DEADPROP == 1] <- 0.99
 
 #Transform data into new column
 pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
@@ -339,6 +339,9 @@ fit_noclimate_beta <- spglm(formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + 
 fit_noclimate_beta_exp <- spglm(formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE
 , data = pines_sf, family = beta,
 spcov_type = "exponential")
+fit_noclimate_beta_mat <- spglm(formula_noclimate <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE
+, data = pines_sf, family = beta,
+ spcov_initial = spcov_initial("matern", extra = 2, known = "extra"))
 
 aic_mods <- AIC(fit_noclimate_beta, fit_noclimate_beta_exp)
 print(aic_mods)
