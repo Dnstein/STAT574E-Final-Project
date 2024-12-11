@@ -76,7 +76,7 @@ ID_state <- tigris::states() %>% filter(STATEFP == "16") %>% st_transform(crs = 
 
 #Plot locations
 ggmap(idaho_map) +
-  geom_point(aes(x = LON, y = LAT, color = "Plot Locations"), data = data.frame(grouped_dat), shape = 21, fill = "#a24857", color = "black", alpha = 0.75) +
+  geom_point(aes(x = LON, y = LAT, color = "Plot Locations"), data = data.frame(pines), shape = 21, fill = "#a24857", color = "black", alpha = 0.75) +
   geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", linewidth = 1.25) +  # Increase size for bolder border
   scale_color_viridis(option = "inferno", direction = -1, name = "Dead Proportion") +
   labs(title = "Plot Locations", x = "Longitude", y = "Latitude", color = "Dead Proportion", size = "Dead Proportion") + 
@@ -206,6 +206,7 @@ ggmap(forest_map) +
   geom_point(aes(x = LON, y = LAT, color = BALIVE, size = DEADPROP), data = data.frame(pines))  +
   scale_color_viridis(option = "mako", direction = -1) 
 ```
+
 Data transformation into logit space:
 
 ```{r}
