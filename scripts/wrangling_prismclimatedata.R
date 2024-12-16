@@ -31,10 +31,14 @@ mean_ppt <- pd_to_file(mean_ppt)
 mean_temp_rast <- rast(mean_temp)
 mean_ppt_rast <- rast(mean_ppt)
 
+mean_ppt_rast<-terra::rast("outputs/crop_ppt_norms_idaho.tif")
+mean_temp_rast<-terra::rast("outputs/crop_temp_norms_idaho.tif")
+
 # crop climate to extent of pine occurrences in FIA plots in Idaho ### 
 idaho_map <- ggplot2::map_data('state', region = c("Idaho"))
 idaho_spat <- vect(idaho_map, geom = c("long", "lat"), crs = "+proj=longlat +datum=NAD83")
 idaho_spat <- project(idaho_spat, crs(mean_temp_rast))
+
 
 # cropping climate normals to idaho
 crop_ppt_norms <- crop(mean_ppt_rast, idaho_spat)
@@ -65,11 +69,14 @@ write_csv(temp_df, "data/temp_idaho.csv")
 # making idaho into df
 idaho_boundary_df <- as.data.frame(geom(idaho_spat))
 
+
+ppt_df <- read_csv("data/precip_idaho.csv")
+temp_df <- read_csv("data/temp_idaho.csv")
 #plot precip
 precip <- ggplot() +
   geom_tile(data = ppt_df, aes(x = x, y = y, fill = precip)) +  
   scale_fill_viridis_c(name = "Precipitation (mm)") +  
-  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "red", size = 1) + 
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "red", size = 1.5) + 
   labs(title = "mean annual precipitation",
        x = "Longitude", y = "Latitude") +
   coord_fixed() +
@@ -82,7 +89,7 @@ temp <- ggplot() +
   geom_tile(data = temp_df, aes(x = x, y = y, fill = tmean)) +  
   scale_fill_gradient(name = "Temperature (°C)",
                       low = "yellow", high = "red") +
-  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1) +  # Add Idaho boundary
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1.5) +  # Add Idaho boundary
   labs(title = "mean annual temperature",
        x = "Longitude", y = "Latitude") +
   coord_fixed() +

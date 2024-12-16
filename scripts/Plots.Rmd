@@ -1,9 +1,14 @@
 ---
-title: "Disturbance Agent Plots"
+title: "Disturbance Agent and Climate Plots"
 output: html_document
 date: "2024-12-09"
 ---
 ```{r, message = FALSE}
+library(ggmap)
+library(ggplot2)
+library(ggspatial)
+library(viridis)
+
 #Read in FIA data
 pines <- read_csv("data/pines_plotsdat.csv")
 
@@ -28,32 +33,10 @@ pines_sf <- st_as_sf(pines, coords = c("LON", "LAT"), crs = 8826)
 ```
 
 ```{r}
-
+#Histogram for mortality by disturbance type
 
 #Filter for dead trees
 filtered_pines_2 <- pines %>% filter(STATUSCD == 2)
-
- # Load the necessary libraries
-
-# Filter the dataset for STATUSCD and specific disturbance codes
-filtered_pines_2 <- filtered_pines_2 %>%
-  filter(STATUSCD == 2) %>%
-  filter(DSTRBCD1 %in% c(10, 11, 12, 20, 21, 22, 30, 31, 32)) %>%
-  mutate(Disturbance_Type = case_when(
-    DSTRBCD1 %in% c(10, 11, 12) ~ "Insect",
-    DSTRBCD1 %in% c(20, 21, 22) ~ "Disease",
-    DSTRBCD1 %in% c(30, 31, 32) ~ "Fire"
-  ))
-
-# Plot the histogram with customized colors
-ggplot(filtered_pines_2, aes(x = Disturbance_Type, fill = Disturbance_Type)) +
-  geom_histogram(stat = "count", color = "black", binwidth = 1) +
-  scale_fill_manual(values = c("Insect" = "darkblue", "Disease" = "darkorange", "Fire" = "darkred")) +
-  labs(title = "Tree Mortality by Disturbance Type",
-       x = "Exposure to Disturbance",
-       y = "Number of Plots",
-       fill = "Disturbance Type") +
-  theme_minimal()
 
 # Filter the dataset for STATUSCD and specific disturbance codes
 filtered_pines_2 <- pines %>%
@@ -79,7 +62,75 @@ ggplot(avg_dead_prop, aes(x = Disturbance_Type, y = Avg_DeadProp, fill = Disturb
        y = "Average Proportion of Dead Trees",
        fill = "Disturbance Type") +
   theme_minimal()
-
-
 ```
 
+```{r}
+#Temperature and Precipitation plots with proportion of dead trees. Need to load data from "wrangling_prismclimatedata.R" file to plot using this code.
+temp <- ggplot() +
+  geom_tile(data = temp_df, aes(x = x, y = y, fill = tmean)) +
+  scale_fill_gradient(name = "Temperature (°C)", low = "yellow", high = "red") +
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1.5) + 
+  geom_point(data = pines, aes(x = LON, y = LAT, size = DEADPROP), color = "black", alpha = 0.7) + 
+  scale_size_continuous(name = "Mortality (DEADPROP)") + 
+  labs(title = "Mean Annual Temperature with DEADPROP", 
+       x = "Longitude", y = "Latitude") + 
+  coord_fixed() + 
+  theme_bw ()
+
+plot(temp)
+
+#Ceci's temperature map with proportion dead plotted on top
+temp_2 <- ggplot() +
+  geom_tile(data = temp_df, aes(x = x, y = y, fill = tmean)) +  
+  scale_fill_gradient(name = "Temperature (°C)",
+                      low = "yellow", high = "red") +
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1.5) + 
+  geom_point(data = pines, aes(x = LON, y = LAT, size = DEADPROP), color = "black") +
+  scale_size_continuous(name = "Mortality (DEADPROP)", range = c(1, 3)) +
+  labs(title = "Mean Annual Temperature with DEADPROP",
+       x = "Longitude", y = "Latitude") +
+  coord_fixed() +
+  coord_cartesian(xlim = c(-117.25, -114), ylim = c(45, 47.5)) +
+  theme_bw()
+
+print(temp_2)
+
+#Ceci's temperature map with proportion dead plotted on top
+precip_2 <- ggplot() +
+  geom_tile(data = ppt_df, aes(x = x, y = y, fill = precip)) +  
+  scale_fill_gradient(name = "Precipitation (mm)",
+                      low = "darkblue", high = "lightblue") +
+  geom_path(data = idaho_boundary_df, aes(x = x, y = y), color = "black", size = 1.5) +
+  geom_point(data = pines, aes(x = LON, y = LAT, size = DEADPROP), color = "black") +
+  scale_size_continuous(name = "Mortality (DEADPROP)", range = c(1, 3)) +  
+  labs(title = "Mean Annual Precipitation with DEADPROP",
+       x = "Longitude", y = "Latitude") +
+  coord_fixed() +
+  coord_cartesian(xlim = c(-117.25, -114), ylim = c(45, 47.5)) + 
+  theme_bw()
+
+print(precip_2)
+```
+
+```{r}
+#Map of plots with disturbance type 
+ggmap(idaho_map) +
+  geom_point(data = data.frame(pines), aes(x = LON, y = LAT, color = as.factor(DSTRBCD1)), shape = 21, fill = "black", alpha = 0.75) +
+  geom_sf(data = ID_state, inherit.aes = FALSE, fill = NA, color = "black", linewidth = 1.25) + 
+  scale_color_manual(values = c("10" = "red", "11"="red", "12" = "red", "20" = "green", "21"="green", "22"="green", "30" = "blue", "31" = "blue", "32"= "blue"), name = "Disturbance Code") + 
+  labs(title = "Plot Locations", x = "Longitude", y = "Latitude", color = "Disturbance Code", size = "Dead Proportion") + 
+  annotation_north_arrow(
+    location = "tr", 
+    which_north = "true",
+    style = north_arrow_fancy_orienteering
+  ) +
+  annotation_scale(
+    location = "bl",
+    width_hint = 0.3  
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    axis.text.y = element_text(size = 7) 
+  )
+```
