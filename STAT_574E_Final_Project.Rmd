@@ -59,14 +59,9 @@ idaho_clim$temp <- idaho_temp$tmean
 idaho_clim_sf <- st_as_sf(idaho_clim, coords = c("x", "y"), crs = 8826)
 ```
 
-Plots for exploration/visual assessment:
 
 ```{r}
-api_key <- "097faf3b-452d-43dc-bb79-71f676e986be"
-register_google(key = api_key)
-```
-
-```{r}
+#Plots for exploration/visual assessment:
 bbox <- c(left = -116.4615, bottom = 42.0000, right = -111.0437, top = 49.0000)
 forest_map <- get_stadiamap(bbox = bbox, zoom = 6, maptype = "stamen_terrain") # Load the state boundary for 
 
@@ -95,7 +90,9 @@ ggmap(idaho_map) +
     axis.text.x = element_text(size = 7),
     axis.text.y = element_text(size = 7) 
   )
+```
 
+```{r}
 #Dead proportion of trees
 ggmap(nezperece_clearwater_map) + 
   geom_point(aes(x = LON, y = LAT, color = DEADPROP, size = DEADPROP), data = pines) +
@@ -147,12 +144,10 @@ ggmap(nezperece_clearwater_map) +
 Old code for maps, can delete for supplementary materials:
 
 <<<<<<< HEAD
+Data Exploration of Predictor-Response Variables:
+
 ```{r, eval = FALSE}
 =======
-
-Data Exploration of Predictor-Response Variables
-
-```{r}
 
 summary_insect <- summary(pines_sf$DEADPROP[pines_sf$INSECT == 1])
 summary_disease <- summary(pines_sf$DEADPROP[pines_sf$DISEASE == 1])
@@ -180,37 +175,6 @@ pines_sf$disturbance_type <- with(pines_sf, ifelse(
 ))
 
 table(pines_sf$disturbance_type)
-
-
-```
-
-```{r}
->>>>>>> 7131d3306dcd0981fdd1a0577562163368947fbd
-#Simple statewide map to orient the project
-ggmap(idaho_map) +
-  geom_point(aes(x = LON, y = LAT), data = data.frame(pines))
-
-#Points sized/colored by proportion dead
-ggmap(forest_map) +
-  geom_point(aes(x = LON, y = LAT, color = DEADPROP, size = DEADPROP), data = data.frame(pines))  +
-  scale_color_viridis(option = "inferno", direction = -1) 
-
-#Size data points by proportion dead, color by temp
-ggmap(forest_map) +
-  geom_point(aes(x = LON, y = LAT, color = temp, size = DEADPROP), data = data.frame(pines))  +
-  scale_color_viridis(option = "rocket", direction = -1) 
-
-#Size data points by proportion dead, color by precip
-ggmap(forest_map) +
-  geom_point(aes(x = LON, y = LAT, color = precip, size = DEADPROP), data = data.frame(pines))  +
-  scale_color_viridis(direction = -1) 
-
-#Plot agent data
-
-#Size data points by proportion dead, color by competition
-ggmap(forest_map) +
-  geom_point(aes(x = LON, y = LAT, color = BALIVE, size = DEADPROP), data = data.frame(pines))  +
-  scale_color_viridis(option = "mako", direction = -1) 
 ```
 
 Data transformation into logit space:
@@ -234,7 +198,6 @@ pines_sf$logit_DEADPROP_adj <- logit(pines_sf$DEADPROP_adj)
 Define formulas for model fitting:
 
 ```{r}
-
 #MAT and MAP formula with and without interactions
 climate_formula_transform <- logit_DEADPROP_adj ~ precip * temp
 climate_formula_transform_noi <- logit_DEADPROP_adj ~ precip + temp
@@ -260,7 +223,6 @@ combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + t
 ```
 
 Model fitting:
-
 
 ```{r, eval=FALSE}
 #Let's turn this section into a function so that we don't have to redo it all manually
