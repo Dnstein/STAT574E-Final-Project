@@ -57,7 +57,6 @@ idaho_clim$temp <- idaho_temp$tmean
 
 #Convert dataset to sf object with same CRS as pines_sf
 idaho_clim_sf <- st_as_sf(idaho_clim, coords = c("x", "y"), crs = 8826)
-
 ```
 
 
@@ -142,13 +141,9 @@ ggmap(nezperece_clearwater_map) +
     axis.text.y = element_text(size = 7))
   
 ```
-Old code for maps, can delete for supplementary materials:
-
-<<<<<<< HEAD
 Data Exploration of Predictor-Response Variables:
 
 ```{r, eval = FALSE}
-=======
 
 summary_insect <- summary(pines_sf$DEADPROP[pines_sf$INSECT == 1])
 summary_disease <- summary(pines_sf$DEADPROP[pines_sf$DISEASE == 1])
@@ -226,8 +221,6 @@ combined_formula <- DEADPROP_adj ~ BALIVE + FIRE + INSECT + DISEASE + precip + t
 Model fitting:
 
 ```{r, eval=FALSE}
-#Let's turn this section into a function so that we don't have to redo it all manually
-
 #Playing around with fitting models to the dataset just for climate variables for now
 
 #Transformed response, see generalized_response slides page 32
@@ -264,10 +257,8 @@ model_fitting <- function(formula_transform, formula) {
 fit_transform_exp <- splm(formula_transform, data = pines_sf, spcov_type = "exponential",
 estmethod = "sv-wls")
 confint(fit_transform_exp)
-#Our confint here covers zero for everything except temperature with the no interaction formula
 
 #Beta, no spatial covariance, see generalized_response slides page 35
-
 fit_beta <- spglm(formula, data = pines_sf, family = beta, spcov_type = "none")
 
 #GLM with beta response, see generalized_response slides page 36
@@ -289,7 +280,7 @@ t(sapply(list(
 Trying out the model_fitting function:
 
 ```{r}
-#Mostly useful for quick exploration right now, spits out the AIC and bias/MSPE/RMSPE for those we don't have to compute manually
+#Fits model and prints AIC and bias/MSPE/RMSPE
 model_fitting(intercept_formula_transform, intercept_formula)
 model_fitting(competition_formula_transform, competition_formula)
 model_fitting(climate_formula_transform, climate_formula)
@@ -312,7 +303,8 @@ print(aic_mods)
 #LOOCV
 t(sapply(list("glm" = fit_noclimate_beta, "spglm" = fit_noclimate_beta_exp), loocv))
 
-# PLOT RESIDUALS ON MAP FOR SPATIAL AND NONSPATIAL MODEL ABOVE
+#FITTING ONLY BALIVE AND DISTURBANCE
+fit_beta_combined <- spglm(combined_formula, data = pines_sf, family = beta, spcov_type = "none")
 ```
 
 Model diagnostics:
@@ -399,8 +391,11 @@ qqline(pines_sf$combined_beta_residuals)
 plot(density(pines_sf$combined_beta_residuals))
 
 confint(fit_combined_beta)
+
+esv_combined <- esv(combined_formula, pines_sf)
+plot(esv_combined)
 ```
-<<<<<<< HEAD
+
 Exploration of null model:
 
 ```{r}
@@ -426,21 +421,9 @@ qqline(pines_sf$null_residuals)
 plot(density(pines_sf$null_residuals))
 
 confint(fit_null)
+
+esv_null <- esv(DEADPROP_adj ~ 1, pines_sf)
+plot(esv_null)
 ```
 
-Trying to get the semivariograms with the lines:
 
-```{r}
-exp_cov <- function(d, ie, de, range){
-  ie + de * (1 - exp(-d/range))
-}
-esv_combined <- esv(combined_formula, pines_sf)
-plot(esv_combined)
-distances <- seq(0, 1.2, l = 1e2) 
-lines(distances, exp_cov(distances, fit_combined_beta$coefficients$spcov['ie'],
-                          fit_combined_beta$coefficients$spcov['de'],
-                          fit_combined_beta$coefficients$spcov['range']), lty = 2, lwd = 2, col = "gray")
-```
-=======
-
->>>>>>> 7131d3306dcd0981fdd1a0577562163368947fbd
